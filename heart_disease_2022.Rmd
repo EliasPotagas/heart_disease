@@ -1,0 +1,210 @@
+---
+title: "heart_disease_2022"
+output: html_document
+date: "2023-10-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(naniar)
+library(scales)
+library(ggplot2)
+library(forcats)
+library(gridExtra)
+library(caret)
+library(cluster)
+library(factoextra)
+library(stats)
+library(dplyr)
+library(ggfortify)
+library(GGally)
+library(ROSE)
+library(randomForest)
+library(corrplot)
+library(e1071) 
+library(class)
+
+```
+
+
+```{r}
+df <- read.csv("heart_2022.csv")
+```
+
+```{r}
+glimpse(df)
+```
+```{r}
+df[df == " "] <-NA
+```
+
+```{r}
+head(df)
+```
+```{r}
+colnames(df)
+```
+
+```{r}
+sum(is.na(df))
+```
+```{r}
+summary(df)
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+gg_miss_upset(df)
+```
+```{r}
+gg_miss_which(df)
+```
+
+
+```{r}
+miss_var_summary(df)
+```
+```{r}
+distinct(df)
+```
+
+```{r}
+table(df$AgeCategory)
+```
+```{r}
+#Convert Ages From Chr to Numeric
+#Mean value will represent the numeric conversion
+
+df$AgeCategory[df$AgeCategory == "Age 18 to 24"] <- 21
+df$AgeCategory[df$AgeCategory == "Age 25 to 29"] <- 27
+df$AgeCategory[df$AgeCategory == "Age 30 to 34"] <- 32
+df$AgeCategory[df$AgeCategory == "Age 35 to 39"] <- 37
+df$AgeCategory[df$AgeCategory == "Age 40 to 44"] <- 42
+df$AgeCategory[df$AgeCategory == "Age 45 to 49"] <- 47
+df$AgeCategory[df$AgeCategory == "Age 50 to 54"] <- 52
+df$AgeCategory[df$AgeCategory == "Age 55 to 59"] <- 57
+df$AgeCategory[df$AgeCategory == "Age 60 to 64"] <- 62
+df$AgeCategory[df$AgeCategory == "Age 65 to 69"] <- 67
+df$AgeCategory[df$AgeCategory == "Age 70 to 74"] <- 72
+df$AgeCategory[df$AgeCategory == "Age 75 to 79"] <- 77
+df$AgeCategory[df$AgeCategory == "Age 80 or older"] <- 80
+df$AgeCategory <- as.numeric(df$AgeCategory)
+summary(df$AgeCategory)
+```
+```{r}
+#Convert categorical to numeric
+distinct_general_health <- distinct(df, GeneralHealth)
+distinct_general_health
+```
+```{r}
+df$GeneralHealth[df$GeneralHealth == "Poor"] <- 0
+df$GeneralHealth[df$GeneralHealth == "Fair"] <- 1
+df$GeneralHealth[df$GeneralHealth == "Good"] <- 2
+df$GeneralHealth[df$GeneralHealth == "Very good"] <- 3
+df$GeneralHealth[df$GeneralHealth == "Excellent"] <- 4
+df$GeneralHealth <- as.numeric(df$GeneralHealth)
+summary(df$GeneralHealth)
+```
+
+```{r}
+df$HadHeartAttack[df$HadHeartAttack == "No"] <- 0
+df$HadHeartAttack[df$HadHeartAttack == "Yes"] <- 1
+df$HadHeartAttack <- as.numeric(df$HadHeartAttack)
+```
+
+
+```{r}
+# Select numeric and categorical columns
+numeric_columns <- select_if(df, is.numeric)
+categorical_columns <- select_if(df, is.character)
+numeric_columns
+categorical_columns
+
+```
+
+```{r}
+df = na.omit(df)
+```
+
+```{r}
+ggplot(df, aes(x = factor(HadHeartAttack), fill = factor(HadHeartAttack))) +
+  geom_bar() +
+  labs(
+    title = "Descrepency of # of Heart Attacks",
+    x = "Had Heart Attack",
+    y = "Count"
+  ) +
+  scale_fill_manual(values = c("red", "green"), name = "Had Heart Attack") +
+  theme_minimal() +
+  geom_text(
+    aes(label = ..count..),
+    stat = "count",
+    vjust = -0.5
+  ) +
+  facet_wrap(~Sex)
+```
+```{r}
+sum(train_data$HadHeartAttack == 0)
+sum(train_data$HadHeartAttack == 1)
+
+```
+```{r}
+
+visualize_correlation <- function(data, method = "pearson", title = "Correlation Plot") {
+  # Select only the numeric columns from the dataset
+  numeric_data <- data[, sapply(data, is.numeric)]
+  
+  # Calculate the correlation matrix
+  correlation_matrix <- cor(numeric_data, method = method)
+  
+  # Create a correlation plot
+  corrplot(correlation_matrix, method = "color", type = "upper", tl.cex = 0.8, title = title)
+}
+
+# Usage example:
+# Assuming 'your_data' is your dataset
+visualize_correlation(df, method = "pearson", title = "Feature Correlation")
+```
+
+
+```{r}
+numeric_columns <- select_if(df, is.numeric)
+column_selection <- df[, c("BMI", "AgeCategory", "SleepHours", "GeneralHealth", "HadHeartAttack")]
+data_col <- column_selection
+# Split the dataset and remove missing values
+splitIndex <- createDataPartition(data_col$HadHeartAttack, p = 0.8, list = FALSE, times = 1)
+train_data <- data_col[splitIndex, ]
+test_data <- data_col[-splitIndex, ]
+# Scale the numeric features
+train_data <- scale(train_data)
+test_data <- scale(test_data)
+train_data <- as.data.frame(train_data)
+test_data <- as.data.frame(test_data)
+
+# Extract target variables
+target_train_variable <- train_data$HadHeartAttack
+target_test_variable <- test_data$HadHeartAttack
+
+```
+
+```{r}
+set.seed(1)
+pred = knn(train_data,test_data,target_train_variable,k=15)
+
+```
+
+```{r}
+confusion_matrix <- table(Actual = test_data$HadHeartAttack, Predicted = pred)
+print(confusion_matrix)
+```
+
+
+
+
